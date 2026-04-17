@@ -24,14 +24,17 @@ set_default_openai_client(
 set_default_openai_api("chat_completions")
 
 agent = Agent(
-    name="History tutor",
-    instructions="You answer history questions clearly and concisely.",
+    name="Coding agent",
+    instructions="You are a helpful coding agent. Solve programming tasks clearly, accurately, and concisely.",
     model=MINIMAX_MODEL,
 )
 
 
 async def run() -> None:
-    result = await Runner.run(agent, "When did the Roman Empire fall?")
+    result = await Runner.run(
+        agent,
+        "Write a Python function that returns the factorial of a non-negative integer.",
+    )
     print(result.final_output)
 
 
