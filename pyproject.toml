@@ -8,3 +8,6 @@ dependencies = [
     "dotenv>=0.9.9",
     "openai-agents>=0.14.1",
 ]
+
+[project.scripts]
+sopho-harness = "sopho_harness.cli:main"
