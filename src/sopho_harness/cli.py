@@ -31,10 +31,14 @@ agent = Agent(
 )
 
 
-async def main() -> None:
+async def run() -> None:
     result = await Runner.run(agent, "When did the Roman Empire fall?")
     print(result.final_output)
 
 
+def main() -> None:
+    asyncio.run(run())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
