@@ -20,6 +20,9 @@ from agents.run_context import AgentHookContext
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
+from sopho_harness.config import SophoHarnessConfig, load_config
+from sopho_harness.context import build_instructions
+
 load_dotenv()
 
 MINIMAX_BASE_URL = "https://api.minimax.chat/v1"
@@ -47,7 +50,10 @@ def read_file(path: str) -> str:
         return f"File not found: {file_path}"
     if file_path.is_dir():
         entries = sorted(
-            [f"{item.name}/" if item.is_dir() else item.name for item in file_path.iterdir()]
+            [
+                f"{item.name}/" if item.is_dir() else item.name
+                for item in file_path.iterdir()
+            ]
         )
         return "\n".join(entries) if entries else f"Directory is empty: {file_path}"
     return file_path.read_text(encoding="utf-8")
@@ -66,14 +72,6 @@ def _shorten(value: Any, limit: int = 200) -> str:
     if len(text) <= limit:
         return text
     return f"{text[:limit]}..."
-
-
-agent = Agent(
-    name="Coding agent",
-    instructions="You are a helpful coding agent. Solve programming tasks clearly, accurately, and concisely.",
-    model=MINIMAX_MODEL,
-    tools=[read_file, write_patch],
-)
 
 
 class LoggingRunHooks(RunHooks):
@@ -142,6 +140,16 @@ class LoggingRunHooks(RunHooks):
 
 
 async def run() -> None:
+    config = load_config()
+    if config is None:
+        print("No config found. Please create a .sopho-harness/config.toml file.")
+        config = SophoHarnessConfig()
+    agent = Agent(
+        name="Coding agent",
+        instructions=build_instructions(config),
+        model=MINIMAX_MODEL,
+        tools=[read_file, write_patch],
+    )
     result = await Runner.run(
         starting_agent=agent,
         input="Code review this python project.",
