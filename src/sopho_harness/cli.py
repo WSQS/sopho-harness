@@ -1,6 +1,5 @@
 import asyncio
 import os
-from pathlib import Path
 from typing import Any
 
 from agents import (
@@ -10,7 +9,6 @@ from agents import (
     RunHooks,
     Runner,
     Tool,
-    function_tool,
     set_default_openai_api,
     set_default_openai_client,
     set_tracing_disabled,
@@ -22,6 +20,7 @@ from openai import AsyncOpenAI
 
 from sopho_harness.config import SophoHarnessConfig, load_config
 from sopho_harness.context import build_instructions
+from sopho_harness.tools import build_tools
 
 load_dotenv()
 
@@ -41,30 +40,6 @@ set_default_openai_client(
 )
 set_default_openai_api("chat_completions")
 set_tracing_disabled(disabled=True)
-
-
-@function_tool
-def read_file(path: str) -> str:
-    file_path = Path(path)
-    if not file_path.exists():
-        return f"File not found: {file_path}"
-    if file_path.is_dir():
-        entries = sorted(
-            [
-                f"{item.name}/" if item.is_dir() else item.name
-                for item in file_path.iterdir()
-            ]
-        )
-        return "\n".join(entries) if entries else f"Directory is empty: {file_path}"
-    return file_path.read_text(encoding="utf-8")
-
-
-@function_tool
-def write_patch(path: str, content: str) -> str:
-    file_path = Path(path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding="utf-8")
-    return f"Wrote file: {file_path}"
 
 
 def _shorten(value: Any, limit: int = 200) -> str:
@@ -148,7 +123,7 @@ async def run() -> None:
         name="Coding agent",
         instructions=build_instructions(config),
         model=MINIMAX_MODEL,
-        tools=[read_file, write_patch],
+        tools=build_tools(config),
     )
     result = await Runner.run(
         starting_agent=agent,
