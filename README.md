@@ -12,3 +12,7 @@ Example:
 - `.env`: `MINIMAX_API_KEY=your_key`
 - Default task: `uv run sopho-harness`
 - Custom task: `uv run sopho-harness Say hello briefly`
+
+## TODO
+
+- Add a more explicit environment/bootstrap flow for Python tooling so the availability of tools like `ruff` can be prepared ahead of agent startup.
