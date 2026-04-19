@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import os
 from typing import Any
@@ -114,7 +115,7 @@ class LoggingRunHooks(RunHooks):
         print(f"[hook] agent_end: {agent.name} | output={_shorten(output)}")
 
 
-async def run() -> None:
+async def run(task_input: str) -> None:
     config = load_config()
     if config is None:
         print("No config found. Please create a .sopho-harness/config.toml file.")
@@ -127,7 +128,7 @@ async def run() -> None:
     )
     result = await Runner.run(
         starting_agent=agent,
-        input="Code review this python project.",
+        input=task_input,
         max_turns=100,
         hooks=LoggingRunHooks(),
     )
@@ -135,7 +136,15 @@ async def run() -> None:
 
 
 def main() -> None:
-    asyncio.run(run())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "task_input",
+        nargs="*",
+        help="Task input for the coding agent.",
+    )
+    args = parser.parse_args()
+    task_input = " ".join(args.task_input).strip() or "Code review this python project."
+    asyncio.run(run(task_input))
 
 
 if __name__ == "__main__":
