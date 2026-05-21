@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# sopho harness
+.sopho-harness/session.db
