@@ -25,7 +25,9 @@ from sopho_harness.tools import build_tools
 
 load_dotenv()
 
-OPENAI_MODEL = "gpt-5.4"
+openai_model = os.getenv("OPENAI_MODEL")
+if not openai_model:
+    raise RuntimeError("OPENAI_MODEL is not set in .env or environment variables")
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
@@ -132,7 +134,7 @@ async def run(task_input: str) -> None:
     agent = Agent(
         name="Coding agent",
         instructions=build_instructions(config),
-        model=OPENAI_MODEL,
+        model=openai_model,
         tools=build_tools(config),
     )
     result = await Runner.run(
