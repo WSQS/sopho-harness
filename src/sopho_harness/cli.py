@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+from pathlib import Path
 from typing import Any, Literal
 
 from agents import (
@@ -9,6 +10,7 @@ from agents import (
     RunContextWrapper,
     RunHooks,
     Runner,
+    SQLiteSession,
     Tool,
     set_default_openai_api,
     set_default_openai_client,
@@ -131,6 +133,12 @@ async def run(task_input: str) -> None:
     if config is None:
         print("No config found. Please create a .sopho-harness/config.toml file.")
         config = SophoHarnessConfig()
+    session_dir = Path(".sopho-harness")
+    session_dir.mkdir(parents=True, exist_ok=True)
+    session = SQLiteSession(
+        session_id="default",
+        db_path=session_dir / "session.db",
+    )
     agent = Agent(
         name="Coding agent",
         instructions=build_instructions(config),
@@ -142,6 +150,7 @@ async def run(task_input: str) -> None:
         input=task_input,
         max_turns=100,
         hooks=LoggingRunHooks(),
+        session=session,
     )
     print(result.final_output)
 
