@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 import os
-from typing import Any
+from typing import Any, Literal
 
 from agents import (
     Agent,
@@ -32,6 +32,15 @@ if not openai_api_key:
     raise RuntimeError("OPENAI_API_KEY is not set in .env or environment variables")
 
 openai_base_url = os.getenv("OPENAI_BASE_URL")
+openai_api_mode_raw = os.getenv("OPENAI_API_MODE", "responses")
+if openai_api_mode_raw == "chat_completions":
+    openai_api_mode: Literal["chat_completions", "responses"] = "chat_completions"
+elif openai_api_mode_raw == "responses":
+    openai_api_mode = "responses"
+else:
+    raise RuntimeError(
+        "OPENAI_API_MODE must be either 'chat_completions' or 'responses'"
+    )
 
 set_default_openai_client(
     AsyncOpenAI(
@@ -39,7 +48,7 @@ set_default_openai_client(
         base_url=openai_base_url,
     )
 )
-set_default_openai_api("chat_completions")
+set_default_openai_api(openai_api_mode)
 set_tracing_disabled(disabled=True)
 
 
