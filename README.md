@@ -1,17 +1,26 @@
 # sopho-harness
 
-## MiniMax Setup
+## OpenAI Setup
 
 1. Copy `.env.example` to `.env`.
-2. Add your `MINIMAX_API_KEY` to `.env`.
-3. Install dependencies.
-4. Run the CLI.
+2. Add your `OPENAI_API_KEY` to `.env`.
+3. Optionally set `OPENAI_BASE_URL` if you want to use a custom OpenAI-compatible endpoint.
+4. Install dependencies.
+5. Run the CLI.
 
 Example:
 
-- `.env`: `MINIMAX_API_KEY=your_key`
+- `.env`: `OPENAI_API_KEY=your_key`
+- Optional: `OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1`
 - Default task: `uv run sopho-harness`
 - Custom task: `uv run sopho-harness Say hello briefly`
+
+Notes:
+
+- `OPENAI_API_KEY` is required.
+- `OPENAI_BASE_URL` is optional.
+- If `OPENAI_BASE_URL` is not set, the CLI uses the default OpenAI endpoint.
+- If `OPENAI_BASE_URL` is set, the CLI sends requests to that OpenAI-compatible endpoint instead.
 
 ## TODO
 
