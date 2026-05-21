@@ -25,19 +25,19 @@ from sopho_harness.tools import build_tools
 
 load_dotenv()
 
-MINIMAX_BASE_URL = "https://api.minimax.chat/v1"
-MINIMAX_MODEL = "MiniMax-M2.7-highspeed"
+OPENAI_MODEL = "gpt-5.4"
 
-minimax_api_key = os.getenv("MINIMAX_API_KEY")
-if not minimax_api_key:
-    raise RuntimeError("MINIMAX_API_KEY is not set in .env or environment variables")
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise RuntimeError("OPENAI_API_KEY is not set in .env or environment variables")
+
+openai_base_url = os.getenv("OPENAI_BASE_URL")
 
 set_default_openai_client(
     AsyncOpenAI(
-        api_key=minimax_api_key,
-        base_url=MINIMAX_BASE_URL,
-    ),
-    use_for_tracing=False,
+        api_key=openai_api_key,
+        base_url=openai_base_url,
+    )
 )
 set_default_openai_api("chat_completions")
 set_tracing_disabled(disabled=True)
@@ -123,7 +123,7 @@ async def run(task_input: str) -> None:
     agent = Agent(
         name="Coding agent",
         instructions=build_instructions(config),
-        model=MINIMAX_MODEL,
+        model=OPENAI_MODEL,
         tools=build_tools(config),
     )
     result = await Runner.run(
