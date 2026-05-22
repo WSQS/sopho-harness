@@ -1,6 +1,8 @@
 from agents import Agent
 from pydantic import BaseModel, Field
 
+from sopho_harness.agent.clarify import ClarifiedTask
+from sopho_harness.agent.profile import ProjectProfile
 from sopho_harness.tools import read_file
 
 
@@ -40,5 +42,58 @@ def get_context_agent():
         tools=[read_file],
         output_type=TaskContext,
     )
-    context_input = "Build the local code context for the current task."
-    return agent, context_input
+    return agent
+
+
+def build_context_input(profile: ProjectProfile, clarified_task: ClarifiedTask) -> str:
+    goals = "\n".join(f"- {goal}" for goal in clarified_task.goals) or "- None"
+    non_goals = (
+        "\n".join(f"- {non_goal}" for non_goal in clarified_task.non_goals) or "- None"
+    )
+    constraints = (
+        "\n".join(f"- {constraint}" for constraint in clarified_task.constraints)
+        or "- None"
+    )
+    open_questions = (
+        "\n".join(f"- {question}" for question in clarified_task.open_questions)
+        or "- None"
+    )
+
+    return f"""Current step:
+Build the local code context for the current task.
+
+Context mission:
+- Read only the code most relevant to the clarified task.
+- Identify the local files, symbols, patterns, change points, and constraints that downstream planning must understand.
+- Focus on the local area of the codebase rather than summarizing the whole repository.
+- Do not create an implementation plan in this step.
+
+Task summary:
+{clarified_task.task_summary}
+
+Goals:
+{goals}
+
+Non-goals:
+{non_goals}
+
+Constraints:
+{constraints}
+
+Non-blocking open questions from clarify:
+{open_questions}
+
+Project profile summary:
+- Project name: {profile.project_name}
+- Purpose: {profile.purpose}
+- Entrypoints: {", ".join(profile.entrypoints) if profile.entrypoints else "None"}
+- Key modules: {", ".join(profile.key_modules) if profile.key_modules else "None"}
+- Project constraints: {"; ".join(profile.constraints) if profile.constraints else "None"}
+
+Output focus:
+- Prioritize the most relevant files and symbols.
+- Highlight the most likely change points.
+- Record local constraints that planning should preserve.
+- Record unresolved local uncertainties only if they are grounded in the code you read.
+- Base conclusions on file evidence and do not invent details.
+"""

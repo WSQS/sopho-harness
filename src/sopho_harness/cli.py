@@ -26,7 +26,7 @@ from sopho_harness.agent.clarify import (
     build_clarify_input,
     get_clarify_agent,
 )
-from sopho_harness.agent.context import get_context_agent
+from sopho_harness.agent.context import build_context_input, get_context_agent
 from sopho_harness.agent.implement import get_implement_agent
 from sopho_harness.agent.plan import get_plan_agent
 from sopho_harness.agent.profile import build_profile_input, get_profile_agent
@@ -159,6 +159,7 @@ async def run(task_input: str) -> None:
         hooks=LoggingRunHooks(),
         # session=session,
     )
+    profile_output = result.final_output
     profile = result.final_output.to_human()
     print("Profile Agent Result:\n", profile)
     clarify_agent = get_clarify_agent()
@@ -168,14 +169,15 @@ async def run(task_input: str) -> None:
     )
     result = await Runner.run(
         starting_agent=clarify_agent,
-        input=build_clarify_input(task_input, result.final_output),
+        input=build_clarify_input(task_input, profile_output),
         max_turns=100,
         hooks=LoggingRunHooks(),
         session=clarify_session,
     )
+    clarified_task = result.final_output_as(ClarifiedTask)
     clarify = result.final_output.to_human()
     print("Clarify Agent Result:\n", clarify)
-    while not result.final_output_as(ClarifiedTask).ready_for_planning:
+    while not clarified_task.ready_for_planning:
         result = await Runner.run(
             starting_agent=clarify_agent,
             input="The ready for planning is false, keep asking user.",
@@ -183,14 +185,18 @@ async def run(task_input: str) -> None:
             hooks=LoggingRunHooks(),
             session=clarify_session,
         )
+        clarified_task = result.final_output_as(ClarifiedTask)
         clarify = result.final_output.to_human()
         print("Clarify Agent Result:\n", clarify)
     report_sections.append(f"# Clarify Agent Result\n\n{clarify}")
-    context_agent, context_input = get_context_agent()
+    context_agent = get_context_agent()
     context_agent.model = openai_model
     result = await Runner.run(
         starting_agent=context_agent,
-        input=context_input + profile + clarify,
+        input=build_context_input(
+            profile=profile_output,
+            clarified_task=clarified_task,
+        ),
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,
