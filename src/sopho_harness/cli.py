@@ -21,6 +21,13 @@ from agents.run_context import AgentHookContext
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
+from sopho_harness.agent.clarify import get_clarify_agent
+from sopho_harness.agent.context import get_context_agent
+from sopho_harness.agent.implement import get_implement_agent
+from sopho_harness.agent.plan import get_plan_agent
+from sopho_harness.agent.profile import get_profile_agent
+from sopho_harness.agent.review import get_review_agent
+from sopho_harness.agent.verify import get_verify_agent
 from sopho_harness.config import SophoHarnessConfig, load_config
 from sopho_harness.context import build_instructions
 from sopho_harness.tools import build_tools
@@ -139,20 +146,83 @@ async def run(task_input: str) -> None:
         session_id="default",
         db_path=session_dir / "session.db",
     )
-    agent = Agent(
-        name="Coding agent",
-        instructions=build_instructions(config),
-        model=openai_model,
-        tools=build_tools(config),
-    )
+    profile_agent, profile_input = get_profile_agent()
+    profile_agent.model = openai_model
     result = await Runner.run(
-        starting_agent=agent,
-        input=task_input,
+        starting_agent=profile_agent,
+        input=profile_input,
         max_turns=100,
         hooks=LoggingRunHooks(),
-        session=session,
+        # session=session,
     )
-    print(result.final_output)
+    profile = result.final_output.to_human()
+    print("Profile Agent Result:\n", profile)
+    clarify_agent, clarify_input = get_clarify_agent()
+    clarify_agent.model = openai_model
+    result = await Runner.run(
+        starting_agent=clarify_agent,
+        input=clarify_input + profile + task_input,
+        max_turns=100,
+        hooks=LoggingRunHooks(),
+        # session=session,
+    )
+    clarify = result.final_output.to_human()
+    print("Clarify Agent Result:\n", clarify)
+    context_agent, context_input = get_context_agent()
+    context_agent.model = openai_model
+    result = await Runner.run(
+        starting_agent=context_agent,
+        input=clarify_input + profile + clarify + context_input,
+        max_turns=100,
+        hooks=LoggingRunHooks(),
+        # session=session,
+    )
+    context = result.final_output.to_human()
+    print("Context Agent Result:\n", context)
+    plan_agent, plan_input = get_plan_agent()
+    plan_agent.model = openai_model
+    result = await Runner.run(
+        starting_agent=plan_agent,
+        input=plan_input + profile + clarify + context,
+        max_turns=100,
+        hooks=LoggingRunHooks(),
+        # session=session,
+    )
+    plan = result.final_output.to_human()
+    print("Plan Agent Result:\n", plan)
+    implement_agent, implement_input = get_implement_agent()
+    implement_agent.model = openai_model
+    result = await Runner.run(
+        starting_agent=implement_agent,
+        input=implement_input + clarify + context + plan,
+        max_turns=100,
+        hooks=LoggingRunHooks(),
+        # session=session,
+    )
+    implementation = result.final_output.to_human()
+    print("Implement Agent Result:\n", implementation)
+    verify_agent, verify_input = get_verify_agent()
+    verify_agent.model = openai_model
+    result = await Runner.run(
+        starting_agent=verify_agent,
+        input=verify_input + plan + implementation,
+        max_turns=100,
+        hooks=LoggingRunHooks(),
+        # session=session,
+    )
+    verification = result.final_output.to_human()
+    print("Verify Agent Result:\n", verification)
+    review_agent, review_input = get_review_agent()
+    review_agent.model = openai_model
+    result = await Runner.run(
+        starting_agent=review_agent,
+        input=review_input + profile + clarify + context + plan + implementation + verification,
+        max_turns=100,
+        hooks=LoggingRunHooks(),
+        # session=session,
+    )
+    review = result.final_output.to_human()
+    print("Review Agent Result:\n", review)
 
 
 def main() -> None:
