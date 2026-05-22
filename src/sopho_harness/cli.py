@@ -25,7 +25,7 @@ from sopho_harness.agent.clarify import get_clarify_agent
 from sopho_harness.agent.context import get_context_agent
 from sopho_harness.agent.implement import get_implement_agent
 from sopho_harness.agent.plan import get_plan_agent
-from sopho_harness.agent.profile import get_profile_agent
+from sopho_harness.agent.profile import build_profile_input, get_profile_agent
 from sopho_harness.agent.review import get_review_agent
 from sopho_harness.agent.verify import get_verify_agent
 from sopho_harness.config import SophoHarnessConfig, load_config
@@ -146,11 +146,11 @@ async def run(task_input: str) -> None:
         session_id="default",
         db_path=session_dir / "session.db",
     )
-    profile_agent, profile_input = get_profile_agent()
+    profile_agent = get_profile_agent()
     profile_agent.model = openai_model
     result = await Runner.run(
         starting_agent=profile_agent,
-        input=profile_input,
+        input=build_profile_input(),
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,

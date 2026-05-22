@@ -39,5 +39,7 @@ def get_profile_agent():
         tools=[read_file],
         output_type=ProjectProfile,
     )
-    profile_input = "Build the project profile for this repository."
-    return agent, profile_input
+    return agent
+
+def build_profile_input():
+    return "Build the project profile for this repository."
