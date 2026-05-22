@@ -21,7 +21,7 @@ from agents.run_context import AgentHookContext
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
-from sopho_harness.agent.clarify import get_clarify_agent
+from sopho_harness.agent.clarify import build_clarify_input, get_clarify_agent
 from sopho_harness.agent.context import get_context_agent
 from sopho_harness.agent.implement import get_implement_agent
 from sopho_harness.agent.plan import get_plan_agent
@@ -157,11 +157,11 @@ async def run(task_input: str) -> None:
     )
     profile = result.final_output.to_human()
     print("Profile Agent Result:\n", profile)
-    clarify_agent, clarify_input = get_clarify_agent()
+    clarify_agent = get_clarify_agent()
     clarify_agent.model = openai_model
     result = await Runner.run(
         starting_agent=clarify_agent,
-        input=clarify_input + profile + task_input,
+        input=build_clarify_input(task_input, profile),
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,
@@ -172,7 +172,7 @@ async def run(task_input: str) -> None:
     context_agent.model = openai_model
     result = await Runner.run(
         starting_agent=context_agent,
-        input=clarify_input + profile + clarify + context_input,
+        input=context_input + profile + clarify,
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,

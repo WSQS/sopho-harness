@@ -44,5 +44,15 @@ def get_clarify_agent():
         tools=[query_user],
         output_type=ClarifiedTask,
     )
-    clarify_input = "Clarify the user's task for the next planning step."
-    return agent, clarify_input
+    return agent
+
+def build_clarify_input(user_request: str, profile:str) -> str:
+    return f"""Current step:
+Clarify the user's task for the next planning step.
+
+User request:
+{user_request}
+
+Project profile:
+{profile}
+"""
