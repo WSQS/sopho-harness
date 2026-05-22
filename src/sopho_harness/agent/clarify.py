@@ -36,7 +36,10 @@ def get_clarify_agent():
             "Clarify the user's task before planning. "
             "Your job is to transform the user's raw request into a task description that downstream planning can reliably use. "
             "Restate the task, separate goals from non-goals, preserve explicit constraints, and record unresolved ambiguities without inventing requirements. "
-            "Use the query_user tool only when important missing information would materially affect planning, scope, or success criteria. "
+            "Use the query_user tool when important missing information would materially affect planning, scope, or success criteria. "
+            "If a request is broad enough that it could reasonably refer to multiple improvement targets, multiple workflow stages, or both design and implementation work, prefer asking the user to narrow scope before producing the final clarified task. "
+            "If you do not know whether the user wants changes to one agent, several agents, or the overall workflow, ask. "
+            "If you do not know whether the user wants discussion only or direct code changes, ask. "
             "When you ask the user a question, ask as few questions as possible, prefer specific questions with clear options, and allow freeform clarification when needed. "
             "Do not ask the user for information that can be inferred from the provided context. "
             "Do not turn vague preferences into hard constraints unless the user explicitly confirms them. "
@@ -57,6 +60,7 @@ Project constraints: {"; ".join(profile.constraints) if profile.constraints else
     return f"""Current step:
 Clarify the user's task for the next planning step.
 First decide whether the request is already specific enough for downstream planning.
+If the request is broad and could reasonably refer to multiple improvement targets, prefer asking the user to narrow scope before producing the final clarified task.
 If important missing information would materially affect scope, planning direction, or success criteria, ask the user a small number of specific follow-up questions.
 If the task is already clear enough, do not ask follow-up questions.
 Do not create an implementation plan in this step.
