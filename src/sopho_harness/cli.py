@@ -21,7 +21,11 @@ from agents.run_context import AgentHookContext
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
-from sopho_harness.agent.clarify import build_clarify_input, get_clarify_agent
+from sopho_harness.agent.clarify import (
+    ClarifiedTask,
+    build_clarify_input,
+    get_clarify_agent,
+)
 from sopho_harness.agent.context import get_context_agent
 from sopho_harness.agent.implement import get_implement_agent
 from sopho_harness.agent.plan import get_plan_agent
@@ -159,15 +163,29 @@ async def run(task_input: str) -> None:
     print("Profile Agent Result:\n", profile)
     clarify_agent = get_clarify_agent()
     clarify_agent.model = openai_model
+    clarify_session = SQLiteSession(
+        session_id="default",
+    )
     result = await Runner.run(
         starting_agent=clarify_agent,
         input=build_clarify_input(task_input, result.final_output),
         max_turns=100,
         hooks=LoggingRunHooks(),
-        # session=session,
+        session=clarify_session,
     )
     clarify = result.final_output.to_human()
     print("Clarify Agent Result:\n", clarify)
+    while not result.final_output_as(ClarifiedTask).ready_for_planning:
+        result = await Runner.run(
+            starting_agent=clarify_agent,
+            input="The ready for planning is false, keep asking user.",
+            max_turns=100,
+            hooks=LoggingRunHooks(),
+            session=clarify_session,
+        )
+        clarify = result.final_output.to_human()
+        print("Clarify Agent Result:\n", clarify)
+    report_sections.append(f"# Clarify Agent Result\n\n{clarify}")
     context_agent, context_input = get_context_agent()
     context_agent.model = openai_model
     result = await Runner.run(
@@ -216,7 +234,13 @@ async def run(task_input: str) -> None:
     review_agent.model = openai_model
     result = await Runner.run(
         starting_agent=review_agent,
-        input=review_input + profile + clarify + context + plan + implementation + verification,
+        input=review_input
+        + profile
+        + clarify
+        + context
+        + plan
+        + implementation
+        + verification,
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,
