@@ -30,6 +30,24 @@ def write_patch(path: str, content: str) -> str:
     return f"Wrote file: {file_path}"
 
 
+@function_tool
+def query_user(question: str, options: list[str] | None = None) -> str:
+    print(question)
+    if options:
+        print("Options:")
+        for idx, opt in enumerate(options, 1):
+            print(f"{idx}. {opt}")
+    while True:
+        answer = input("Your answer: ").strip()
+        if options:
+            if answer.isdigit() and 1 <= int(answer) <= len(options):
+                return options[int(answer) - 1]
+            else:
+                return answer
+        else:
+            return answer
+
+
 def build_python_tools(config: PythonConfig) -> list[Tool]:
     """Build Python-specific tools from config."""
     if not config.entrypoint:
