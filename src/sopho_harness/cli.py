@@ -161,7 +161,7 @@ async def run(task_input: str) -> None:
     clarify_agent.model = openai_model
     result = await Runner.run(
         starting_agent=clarify_agent,
-        input=build_clarify_input(task_input, profile),
+        input=build_clarify_input(task_input, result.final_output),
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,

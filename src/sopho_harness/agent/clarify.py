@@ -1,6 +1,7 @@
 from agents import Agent
 from pydantic import BaseModel, Field
 
+from sopho_harness.agent.profile import ProjectProfile
 from sopho_harness.tools import query_user
 
 
@@ -46,13 +47,23 @@ def get_clarify_agent():
     )
     return agent
 
-def build_clarify_input(user_request: str, profile:str) -> str:
+def build_clarify_input(user_request: str, profile:ProjectProfile) -> str:
+    profile_summary = f"""Project name: {profile.project_name}
+Purpose: {profile.purpose}
+Entrypoints: {", ".join(profile.entrypoints) if profile.entrypoints else "None"}
+Key modules: {", ".join(profile.key_modules) if profile.key_modules else "None"}
+Project constraints: {"; ".join(profile.constraints) if profile.constraints else "None"}"""
+
     return f"""Current step:
 Clarify the user's task for the next planning step.
+First decide whether the request is already specific enough for downstream planning.
+If important missing information would materially affect scope, planning direction, or success criteria, ask the user a small number of specific follow-up questions.
+If the task is already clear enough, do not ask follow-up questions.
+Do not create an implementation plan in this step.
 
 User request:
 {user_request}
 
-Project profile:
-{profile}
+Project profile summary:
+{profile_summary}
 """
