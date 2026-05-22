@@ -10,7 +10,7 @@ class ClarifiedTask(BaseModel):
     goals: list[str] = Field(description="The concrete goals that the implementation should achieve.")
     non_goals: list[str] = Field(description="What should explicitly remain out of scope for this task.")
     constraints: list[str] = Field(description="Relevant constraints, requirements, or boundaries stated or implied by the user.")
-    open_questions: list[str] = Field(description="Important ambiguities or missing details that may require follow-up before planning or implementation.")
+    open_questions: list[str] = Field(description="Minor non-blocking follow-up questions or implementation-level details that can be left for later planning or execution once the main task definition is already clear.")
 
     def to_human(self) -> str:
         def format_list(title: str, items: list[str]) -> str:
