@@ -6,6 +6,7 @@ from sopho_harness.tools import query_user
 
 
 class ClarifiedTask(BaseModel):
+    ready_for_planning: bool = Field(description="Whether the task is now sufficiently clear for downstream planning to proceed without asking the user for more essential information.")
     task_summary: str = Field(description="A concise restatement of the user's requested task.")
     goals: list[str] = Field(description="The concrete goals that the implementation should achieve.")
     non_goals: list[str] = Field(description="What should explicitly remain out of scope for this task.")
@@ -21,6 +22,7 @@ class ClarifiedTask(BaseModel):
 
         sections = [
             f"# {self.task_summary}",
+            f"## Ready for planning\n\n- {'Yes' if self.ready_for_planning else 'No'}",
             format_list("Goals", self.goals),
             format_list("Non-goals", self.non_goals),
             format_list("Constraints", self.constraints),
