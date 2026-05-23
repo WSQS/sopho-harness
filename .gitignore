@@ -12,3 +12,5 @@ wheels/
 
 # sopho harness
 .sopho-harness/session.db
+.sopho-harness/runs
+
