@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -74,11 +76,37 @@ def _shorten(value: Any, limit: int = 200) -> str:
     return f"{text[:limit]}..."
 
 
+class RunRecorder:
+    def __init__(self, run_id: str, run_dir: Path) -> None:
+        self.run_id = run_id
+        self.run_dir = run_dir
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+
+    def record(self, stage: str, payload: dict[str, Any]) -> None:
+        record_payload: dict[str, Any] = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "run_id": self.run_id,
+            "stage": stage,
+            **payload,
+        }
+        file_path = self.run_dir / f"{stage}.jsonl"
+        with file_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record_payload, ensure_ascii=False) + "\n")
+
+
 class LoggingRunHooks(RunHooks):
+    def __init__(self, recorder: RunRecorder, stage: str) -> None:
+        self.recorder = recorder
+        self.stage = stage
+
+    def _record(self, payload: dict[str, Any]) -> None:
+        self.recorder.record(self.stage, payload)
+
     async def on_agent_start(
         self, context: AgentHookContext[Any], agent: Agent[Any]
     ) -> None:
         print(f"[hook] agent_start: {agent.name}")
+        self._record({"agent": agent.name, "event": "agent_start"})
 
     async def on_llm_start(
         self,
@@ -91,6 +119,14 @@ class LoggingRunHooks(RunHooks):
             f"[hook] llm_start: {agent.name} | input_items={len(input_items)} | "
             f"system_prompt={_shorten(system_prompt)} | input={_shorten(input_items)}"
         )
+        self._record(
+            {
+                "agent": agent.name,
+                "event": "llm_start",
+                "system_prompt": system_prompt,
+                "input_items": str(input_items),
+            }
+        )
 
     async def on_llm_end(
         self,
@@ -102,6 +138,14 @@ class LoggingRunHooks(RunHooks):
             f"[hook] llm_end: {agent.name} | response_id={response.response_id} | "
             f"output={_shorten(response.output)}"
         )
+        self._record(
+            {
+                "agent": agent.name,
+                "event": "llm_end",
+                "response_id": response.response_id,
+                "output": str(response.output),
+            }
+        )
 
     async def on_tool_start(
         self, context: RunContextWrapper[Any], agent: Agent[Any], tool: Tool
@@ -110,6 +154,14 @@ class LoggingRunHooks(RunHooks):
         print(
             f"[hook] tool_start: {agent.name} -> {tool.name} | "
             f"args={_shorten(tool_arguments)}"
+        )
+        self._record(
+            {
+                "agent": agent.name,
+                "event": "tool_start",
+                "tool": tool.name,
+                "arguments": tool_arguments,
+            }
         )
 
     async def on_tool_end(
@@ -124,6 +176,15 @@ class LoggingRunHooks(RunHooks):
             f"[hook] tool_end: {agent.name} -> {tool.name} | "
             f"args={_shorten(tool_arguments)} | result={_shorten(result)}"
         )
+        self._record(
+            {
+                "agent": agent.name,
+                "event": "tool_end",
+                "tool": tool.name,
+                "arguments": tool_arguments,
+                "result": result,
+            }
+        )
 
     async def on_handoff(
         self,
@@ -132,11 +193,19 @@ class LoggingRunHooks(RunHooks):
         to_agent: Agent[Any],
     ) -> None:
         print(f"[hook] handoff: {from_agent.name} -> {to_agent.name}")
+        self._record(
+            {
+                "agent": from_agent.name,
+                "event": "handoff",
+                "to_agent": to_agent.name,
+            }
+        )
 
     async def on_agent_end(
         self, context: AgentHookContext[Any], agent: Agent[Any], output: Any
     ) -> None:
         print(f"[hook] agent_end: {agent.name} | output={_shorten(output)}")
+        self._record({"agent": agent.name, "event": "agent_end", "output": str(output)})
 
 
 async def run(task_input: str) -> None:
@@ -146,6 +215,9 @@ async def run(task_input: str) -> None:
         config = SophoHarnessConfig()
     session_dir = Path(".sopho-harness")
     session_dir.mkdir(parents=True, exist_ok=True)
+    run_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    run_dir = session_dir / "runs" / run_id
+    recorder = RunRecorder(run_id=run_id, run_dir=run_dir)
     session = SQLiteSession(
         session_id="default",
         db_path=session_dir / "session.db",
@@ -156,7 +228,7 @@ async def run(task_input: str) -> None:
         starting_agent=profile_agent,
         input=build_profile_input(),
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="profile"),
         # session=session,
     )
     profile_output = result.final_output
@@ -171,7 +243,7 @@ async def run(task_input: str) -> None:
         starting_agent=clarify_agent,
         input=build_clarify_input(task_input, profile_output),
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="clarify"),
         session=clarify_session,
     )
     clarified_task = result.final_output_as(ClarifiedTask)
@@ -182,7 +254,7 @@ async def run(task_input: str) -> None:
             starting_agent=clarify_agent,
             input="The ready for planning is false, keep asking user.",
             max_turns=100,
-            hooks=LoggingRunHooks(),
+            hooks=LoggingRunHooks(recorder=recorder, stage="clarify"),
             session=clarify_session,
         )
         clarified_task = result.final_output_as(ClarifiedTask)
@@ -198,7 +270,7 @@ async def run(task_input: str) -> None:
             clarified_task=clarified_task,
         ),
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="context"),
         # session=session,
     )
     context_output = result.final_output
@@ -214,7 +286,7 @@ async def run(task_input: str) -> None:
             context=context_output,
         ),
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="plan"),
         # session=session,
     )
     plan_output = result.final_output
@@ -230,7 +302,7 @@ async def run(task_input: str) -> None:
             plan=plan_output,
         ),
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="implement"),
         # session=session,
     )
     implementation = result.final_output.to_human()
@@ -241,7 +313,7 @@ async def run(task_input: str) -> None:
         starting_agent=verify_agent,
         input=verify_input + plan + implementation,
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="verify"),
         # session=session,
     )
     verification = result.final_output.to_human()
@@ -258,7 +330,7 @@ async def run(task_input: str) -> None:
         + implementation
         + verification,
         max_turns=100,
-        hooks=LoggingRunHooks(),
+        hooks=LoggingRunHooks(recorder=recorder, stage="review"),
         # session=session,
     )
     review = result.final_output.to_human()
