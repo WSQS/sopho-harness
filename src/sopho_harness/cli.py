@@ -260,7 +260,6 @@ async def run(task_input: str) -> None:
         clarified_task = result.final_output_as(ClarifiedTask)
         clarify = result.final_output.to_human()
         print("Clarify Agent Result:\n", clarify)
-    report_sections.append(f"# Clarify Agent Result\n\n{clarify}")
     context_agent = get_context_agent()
     context_agent.model = openai_model
     result = await Runner.run(
