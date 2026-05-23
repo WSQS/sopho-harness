@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from sopho_harness.agent.clarify import ClarifiedTask
 from sopho_harness.agent.context import TaskContext
 from sopho_harness.agent.plan import ChangePlan
+from sopho_harness.tools import read_file, write_patch
 
 
 class ImplementationDraft(BaseModel):
@@ -35,6 +36,7 @@ def get_implement_agent():
         name="Implement Agent",
         instructions="Describe the candidate implementation for the approved change plan. Stay within the declared scope, focus on concrete edits, and do not expand the task beyond the plan.",
         output_type=ImplementationDraft,
+        tools=[read_file, write_patch],
     )
     return agent
 
