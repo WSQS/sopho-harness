@@ -2,14 +2,16 @@ from agents import Agent
 from pydantic import BaseModel, Field
 
 
+class PlanStep(BaseModel):
+    name: str
+    description: str
+    target_files: list[str]
+    uncertainties: list[str]
+
+
 class ChangePlan(BaseModel):
     plan_summary: str = Field(description="A concise summary of the intended change.")
-    goals: list[str] = Field(description="The specific outcomes this change plan should achieve.")
-    target_files: list[str] = Field(description="The files most likely to require modification for this change.")
-    steps: list[str] = Field(description="A minimal ordered implementation plan for the change.")
-    non_goals: list[str] = Field(description="Explicitly out-of-scope work that should not be included in this change.")
-    risks: list[str] = Field(description="The main implementation risks, uncertainties, or invariants to watch.")
-    open_questions: list[str] = Field(description="Remaining planning questions that may affect implementation quality or scope.")
+    steps: list[PlanStep]
 
     def to_human(self) -> str:
         def format_list(title: str, items: list[str]) -> str:
@@ -18,14 +20,25 @@ class ChangePlan(BaseModel):
             lines = "\n".join(f"- {item}" for item in items)
             return f"## {title}\n\n{lines}"
 
+        def format_steps(steps: list[PlanStep]) -> str:
+            if not steps:
+                return "## Steps\n\n- None"
+
+            rendered_steps: list[str] = []
+            for index, step in enumerate(steps, 1):
+                sections = [
+                    f"### Step {index}: {step.name}",
+                    step.description,
+                    format_list("Target files", step.target_files),
+                    format_list("Uncertainties", step.uncertainties),
+                ]
+                rendered_steps.append("\n\n".join(sections))
+
+            return "## Steps\n\n" + "\n\n".join(rendered_steps)
+
         sections = [
             f"# {self.plan_summary}",
-            format_list("Goals", self.goals),
-            format_list("Target files", self.target_files),
-            format_list("Steps", self.steps),
-            format_list("Non-goals", self.non_goals),
-            format_list("Risks", self.risks),
-            format_list("Open questions", self.open_questions),
+            format_steps(self.steps),
         ]
         return "\n\n".join(sections)
 
