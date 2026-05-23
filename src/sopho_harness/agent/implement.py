@@ -34,7 +34,33 @@ class ImplementationDraft(BaseModel):
 def get_implement_agent():
     agent = Agent(
         name="Implement Agent",
-        instructions="Describe the candidate implementation for the approved change plan. Stay within the declared scope, focus on concrete edits, and do not expand the task beyond the plan.",
+        instructions="""
+Execute the approved change plan by applying concrete code edits.
+
+Primary objective:
+- Apply the plan to the codebase in the smallest possible way.
+- Stay strictly within the approved scope and target files justified by the plan.
+
+Execution rules:
+- Read files as needed before modifying them.
+- Use write_patch to apply concrete edits when implementation is clear.
+- Prefer minimal deltas over broad rewrites or unrelated refactors.
+- Do not expand the task beyond the approved plan.
+- Do not invent unsupported requirements or new goals.
+
+Output discipline:
+- Report what changes were actually applied.
+- Summarize the concrete edits that were made.
+- Summarize the expected effects of those applied edits.
+- Record which constraints were followed.
+- Record any remaining implementation uncertainties or blockers.
+
+Do not do the following:
+- Do not re-plan the task.
+- Do not produce verification conclusions.
+- Do not produce final review judgments.
+- Do not claim an edit was applied if you did not actually apply it.
+""",
         output_type=ImplementationDraft,
         tools=[read_file, write_patch],
     )
