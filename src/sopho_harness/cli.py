@@ -27,7 +27,7 @@ from sopho_harness.agent.clarify import (
     get_clarify_agent,
 )
 from sopho_harness.agent.context import build_context_input, get_context_agent
-from sopho_harness.agent.implement import get_implement_agent
+from sopho_harness.agent.implement import build_implement_input, get_implement_agent
 from sopho_harness.agent.plan import build_plan_input, get_plan_agent
 from sopho_harness.agent.profile import build_profile_input, get_profile_agent
 from sopho_harness.agent.review import get_review_agent
@@ -217,13 +217,18 @@ async def run(task_input: str) -> None:
         hooks=LoggingRunHooks(),
         # session=session,
     )
+    plan_output = result.final_output
     plan = result.final_output.to_human()
     print("Plan Agent Result:\n", plan)
-    implement_agent, implement_input = get_implement_agent()
+    implement_agent = get_implement_agent()
     implement_agent.model = openai_model
     result = await Runner.run(
         starting_agent=implement_agent,
-        input=implement_input + clarify + context + plan,
+        input=build_implement_input(
+            clarified_task=clarified_task,
+            context=context_output,
+            plan=plan_output,
+        ),
         max_turns=100,
         hooks=LoggingRunHooks(),
         # session=session,

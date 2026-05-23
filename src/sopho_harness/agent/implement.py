@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel, Field
 
+from sopho_harness.agent.clarify import ClarifiedTask
+from sopho_harness.agent.context import TaskContext
+from sopho_harness.agent.plan import ChangePlan
+
 
 class ImplementationDraft(BaseModel):
     implementation_summary: str = Field(description="A concise summary of the proposed implementation.")
@@ -32,5 +36,57 @@ def get_implement_agent():
         instructions="Describe the candidate implementation for the approved change plan. Stay within the declared scope, focus on concrete edits, and do not expand the task beyond the plan.",
         output_type=ImplementationDraft,
     )
-    implement_input = "Describe the candidate implementation for the current change plan."
-    return agent, implement_input
+    return agent
+
+
+def build_implement_input(
+    clarified_task: ClarifiedTask,
+    context: TaskContext,
+    plan: ChangePlan,
+) -> str:
+    constraints = (
+        "\n".join(f"- {constraint}" for constraint in clarified_task.constraints)
+        or "- None"
+    )
+    context_constraints = (
+        "\n".join(f"- {item}" for item in context.local_constraints) or "- None"
+    )
+
+    step_lines: list[str] = []
+    for index, step in enumerate(plan.steps, 1):
+        target_files = ", ".join(step.target_files) if step.target_files else "None"
+        uncertainties = (
+            "; ".join(step.uncertainties) if step.uncertainties else "None"
+        )
+        step_lines.append(
+            f"{index}. {step.name}\n"
+            f"   Description: {step.description}\n"
+            f"   Target files: {target_files}\n"
+            f"   Uncertainties: {uncertainties}"
+        )
+    plan_steps = "\n".join(step_lines) or "- None"
+
+    return f"""Current step:
+Describe the candidate implementation for the approved change plan.
+
+Implementation mission:
+- Turn the approved plan into a concrete candidate implementation description.
+- Stay within the plan and do not expand scope.
+- Focus on intended edits and expected effects.
+- Do not produce verification or review conclusions in this step.
+
+Task summary:
+{clarified_task.task_summary}
+
+Constraints from clarify:
+{constraints}
+
+Local constraints from context:
+{context_constraints}
+
+Approved plan summary:
+{plan.plan_summary}
+
+Approved plan steps:
+{plan_steps}
+"""
