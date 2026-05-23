@@ -1,5 +1,6 @@
 import subprocess
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from agents import Tool, function_tool
 
@@ -23,11 +24,32 @@ def read_file(path: str) -> str:
 
 
 @function_tool
-def write_patch(path: str, content: str) -> str:
-    file_path = Path(path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding="utf-8")
-    return f"Wrote file: {file_path}"
+def write_patch(content: str) -> str:
+    """Apply unified diff content to the current git working tree."""
+    is_supported_patch = content.startswith("--- ") and "\n+++ " in content and "\n@@" in content
+    if not is_supported_patch:
+        return (
+            "Unsupported patch format. write_patch only accepts unified diff content "
+            "that starts with '--- ', includes '+++ ', and contains at least one '@@' hunk."
+        )
+
+    with NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".patch") as tmp:
+        tmp.write(content)
+        patch_file = Path(tmp.name)
+
+    try:
+        result = subprocess.run(
+            ["git", "apply", "--whitespace=nowarn", str(patch_file)],
+            capture_output=True,
+            text=True,
+            cwd=Path.cwd(),
+        )
+        if result.returncode != 0:
+            output = (result.stderr or result.stdout).strip()
+            return f"Failed to apply patch: {output}"
+        return "Applied patch successfully."
+    finally:
+        patch_file.unlink(missing_ok=True)
 
 
 @function_tool

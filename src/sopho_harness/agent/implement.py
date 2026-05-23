@@ -43,7 +43,7 @@ Primary objective:
 
 Execution rules:
 - Read files as needed before modifying them.
-- Use write_patch to apply concrete edits when implementation is clear.
+- Use write_patch with unified diff content to apply concrete edits when implementation is clear.
 - Prefer minimal deltas over broad rewrites or unrelated refactors.
 - Do not expand the task beyond the approved plan.
 - Do not invent unsupported requirements or new goals.
