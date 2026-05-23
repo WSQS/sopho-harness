@@ -95,12 +95,13 @@ def build_implement_input(
     plan_steps = "\n".join(step_lines) or "- None"
 
     return f"""Current step:
-Describe the candidate implementation for the approved change plan.
+Execute the approved change plan by applying concrete code edits.
 
 Implementation mission:
-- Turn the approved plan into a concrete candidate implementation description.
+- Apply the approved plan to the codebase in the smallest possible way.
 - Stay within the plan and do not expand scope.
-- Focus on intended edits and expected effects.
+- Modify only files justified by the approved plan.
+- Report applied edits and expected effects.
 - Do not produce verification or review conclusions in this step.
 
 Task summary:
