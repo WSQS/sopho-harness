@@ -26,7 +26,9 @@ def read_file(path: str) -> str:
 @function_tool
 def write_patch(content: str) -> str:
     """Apply unified diff content to the current git working tree."""
-    is_supported_patch = content.startswith("--- ") and "\n+++ " in content and "\n@@" in content
+    is_supported_patch = (
+        content.startswith("--- ") and "\n+++ " in content and "\n@@" in content
+    )
     if not is_supported_patch:
         return (
             "Unsupported patch format. write_patch only accepts unified diff content "
@@ -38,14 +40,38 @@ def write_patch(content: str) -> str:
         patch_file = Path(tmp.name)
 
     try:
-        result = subprocess.run(
-            ["git", "apply", "--whitespace=nowarn", str(patch_file)],
+        check_result = subprocess.run(
+            [
+                "git",
+                "apply",
+                "--check",
+                "--whitespace=nowarn",
+                "--recount",
+                str(patch_file),
+            ],
             capture_output=True,
             text=True,
             cwd=Path.cwd(),
         )
-        if result.returncode != 0:
-            output = (result.stderr or result.stdout).strip()
+
+        if check_result.returncode != 0:
+            output = (check_result.stderr or check_result.stdout).strip()
+            return f"Failed to validate patch: {output}"
+
+        apply_result = subprocess.run(
+            [
+                "git",
+                "apply",
+                "--whitespace=nowarn",
+                "--recount",
+                str(patch_file),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=Path.cwd(),
+        )
+        if apply_result.returncode != 0:
+            output = (apply_result.stderr or apply_result.stdout).strip()
             return f"Failed to apply patch: {output}"
         return "Applied patch successfully."
     finally:
