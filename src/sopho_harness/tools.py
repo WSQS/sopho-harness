@@ -58,6 +58,26 @@ def write_patch(content: str) -> str:
 
         if check_result.returncode != 0:
             output = (check_result.stderr or check_result.stdout).strip()
+            fallback_result = subprocess.run(
+                [
+                    "git",
+                    "apply",
+                    "--check",
+                    "--whitespace=nowarn",
+                    "--recount",
+                    "--ignore-space-change",
+                    str(patch_file),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=Path.cwd(),
+            )
+            if fallback_result.returncode == 0:
+                return (
+                    "Failed to validate patch: possible_whitespace_or_line_ending_mismatch. "
+                    "Patch applies only when whitespace differences are ignored. "
+                    "Re-read the file with line ending metadata and regenerate a more exact patch."
+                )
             return f"Failed to validate patch: {output}"
 
         apply_result = subprocess.run(
