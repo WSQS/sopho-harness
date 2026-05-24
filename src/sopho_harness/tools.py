@@ -25,7 +25,17 @@ def read_file(path: str) -> str:
 
 @function_tool
 def write_patch(content: str) -> str:
-    """Apply unified diff content to the current git working tree."""
+    """Apply unified diff content to the current git working tree.
+
+    Input must be a single unified diff patch string.
+    Supported input requirements:
+    - starts with a `--- ` file header
+    - includes a matching `+++ ` file header
+    - includes at least one `@@` hunk header
+    - uses standard unified diff line prefixes inside hunks (` `, `+`, `-`)
+
+    Unsupported custom patch wrapper formats such as `*** Begin Patch` are rejected.
+    """
     is_supported_patch = (
         content.startswith("--- ") and "\n+++ " in content and "\n@@" in content
     )
