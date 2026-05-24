@@ -32,7 +32,7 @@ def write_patch(content: str) -> str:
     Supported input requirements:
     - starts with a `--- ` file header
     - includes a matching `+++ ` file header
-    - includes at least one `@@` hunk header
+    - includes at least one hunk header in the exact form `@@ -old_start,old_count +new_start,new_count @@`
     - uses standard unified diff line prefixes inside hunks (` `, `+`, `-`)
 
     Unsupported custom patch wrapper formats such as `*** Begin Patch` are rejected.
