@@ -28,6 +28,7 @@ def write_patch(content: str) -> str:
     """Apply unified diff content to the current git working tree.
 
     Input must be a single unified diff patch string.
+    The patch must modify exactly one file per call.
     Supported input requirements:
     - starts with a `--- ` file header
     - includes a matching `+++ ` file header
