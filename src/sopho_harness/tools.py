@@ -112,6 +112,29 @@ def write_patch(content: str) -> str:
 
 
 @function_tool
+def replace_file(path: str, old: str, new: str) -> str:
+    file_path = Path(path)
+    if not file_path.exists():
+        return f"File not found: {file_path}"
+    if file_path.is_dir():
+        return f"Path is a directory, not a file: {file_path}"
+
+    content = file_path.read_text(encoding="utf-8")
+    occurrences = content.count(old)
+
+    if occurrences == 0:
+        return "Target text not found in file."
+    if occurrences > 1:
+        return (
+            "Target text appears multiple times in file. "
+            "Please provide a more specific old value."
+        )
+
+    file_path.write_text(content.replace(old, new, 1), encoding="utf-8")
+    return f"Updated file: {file_path}"
+
+
+@function_tool
 def query_user(question: str, options: list[str] | None = None) -> str:
     print(question)
     if options:
