@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from sopho_harness.agent.clarify import ClarifiedTask
 from sopho_harness.agent.context import TaskContext
 from sopho_harness.agent.plan import ChangePlan
-from sopho_harness.tools import read_file, write_patch
+from sopho_harness.tools import read_file, replace_file, write_patch
 
 
 class ImplementationDraft(BaseModel):
@@ -43,7 +43,7 @@ Primary objective:
 
 Execution rules:
 - Read files as needed before modifying them.
-- Use write_patch with unified diff content to apply concrete edits when implementation is clear.
+- Use write_patch or replace_file to apply concrete edits when implementation is clear.
 - Prefer minimal deltas over broad rewrites or unrelated refactors.
 - Do not expand the task beyond the approved plan.
 - Do not invent unsupported requirements or new goals.
@@ -62,7 +62,7 @@ Do not do the following:
 - Do not claim an edit was applied if you did not actually apply it.
 """,
         output_type=ImplementationDraft,
-        tools=[read_file, write_patch],
+        tools=[read_file, write_patch, replace_file],
     )
     return agent
 
