@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -61,6 +62,11 @@ def _shorten(value: Any, limit: int = 200) -> str:
     if len(text) <= limit:
         return text
     return f"{text[:limit]}..."
+
+
+@dataclass
+class GuiState:
+    pass
 
 
 class LoggingRunHooks(RunHooks):
@@ -155,7 +161,7 @@ async def run(task_input: str) -> None:
     print(result.final_output)
 
 
-def gui() -> None:
+def gui(state: GuiState) -> None:
     viewport = imgui.get_main_viewport()
     imgui.set_next_window_pos(viewport.work_pos)
     imgui.set_next_window_size(viewport.work_size)
@@ -177,7 +183,21 @@ def gui() -> None:
 
 
 def main() -> None:
-    asyncio.run(hello_imgui.run_async(gui))
+    assets_dir = Path(__file__).parent / "assets"
+    hello_imgui.set_assets_folder(str(assets_dir))
+    state = GuiState()
+
+    def load_fonts() -> None:
+        try:
+            font_path = "fonts/NotoSansSC-Regular.ttf"
+            hello_imgui.load_font(font_path, 18.0)
+        except Exception as e:
+            print(f"Failed to load any CJK font: {e}")
+
+    runner_params = hello_imgui.RunnerParams()
+    runner_params.callbacks.load_additional_fonts = load_fonts
+    runner_params.callbacks.show_gui = lambda: gui(state)
+    asyncio.run(hello_imgui.run_async(runner_params))
 
 
 if __name__ == "__main__":
