@@ -195,6 +195,7 @@ def main() -> None:
             print(f"Failed to load any CJK font: {e}")
 
     runner_params = hello_imgui.RunnerParams()
+    runner_params.app_window_params.window_title = "Sopho Harness"
     runner_params.callbacks.load_additional_fonts = load_fonts
     runner_params.callbacks.show_gui = lambda: gui(state)
     asyncio.run(hello_imgui.run_async(runner_params))
