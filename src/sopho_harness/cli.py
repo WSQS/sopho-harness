@@ -1,9 +1,9 @@
 import asyncio
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import os
 from pathlib import Path
-from typing import Any, Literal
-
+from typing import Any, Literal, cast
 from agents import (
     Agent,
     ModelResponse,
@@ -64,9 +64,108 @@ def _shorten(value: Any, limit: int = 200) -> str:
     return f"{text[:limit]}..."
 
 
+def _item_to_message(item: TResponseInputItem) -> tuple[str, str] | None:
+    def extract_text(value: Any) -> str | None:
+        if isinstance(value, str):
+            return value or None
+
+        if isinstance(value, Mapping):
+            values = cast(Mapping[Any, Any], value)
+            for key in ("text", "result", "output"):
+                text_value = values.get(key)
+                if isinstance(text_value, str) and text_value:
+                    return text_value
+
+            if values.get("type") == "output_text":
+                text_value = values.get("text")
+                if isinstance(text_value, str) and text_value:
+                    return text_value
+
+            nested_content = values.get("content")
+            if isinstance(nested_content, str) and nested_content:
+                return nested_content
+
+            if isinstance(nested_content, Sequence) and not isinstance(
+                nested_content, str | bytes | bytearray
+            ):
+                text_parts: list[str] = []
+                for part in cast(Sequence[Any], nested_content):
+                    text = extract_text(part)
+                    if isinstance(text, str) and text:
+                        text_parts.append(text)
+                if text_parts:
+                    return "\n".join(text_parts)
+
+            return None
+
+        if isinstance(value, Sequence) and not isinstance(
+            value, str | bytes | bytearray
+        ):
+            text_parts: list[str] = []
+            for part in cast(Sequence[Any], value):
+                text = extract_text(part)
+                if isinstance(text, str) and text:
+                    text_parts.append(text)
+            if text_parts:
+                return "\n".join(text_parts)
+
+        return None
+
+    role = item.get("role")
+    if not isinstance(role, str):
+        return None
+
+    text = extract_text(item.get("content"))
+    if isinstance(text, str):
+        return role, text
+
+    return role, _shorten(item)
+
+
+class UiSQLiteSession(SQLiteSession):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._messages_cache: list[tuple[str, str]] = []
+
+    async def refresh_messages(self) -> list[tuple[str, str]]:
+        items = await self.get_items()
+        self._messages_cache = [
+            message for item in items if (message := _item_to_message(item)) is not None
+        ]
+        return list(self._messages_cache)
+
+    def get_cached_messages(self) -> list[tuple[str, str]]:
+        return list(self._messages_cache)
+
+
 @dataclass
 class GuiState:
-    pass
+    session: UiSQLiteSession
+    agent: Agent[Any]
+    input_text: str = ""
+    status_text: str = "Idle"
+    pending_task: asyncio.Task[None] | None = None
+
+    async def send_message(self, message: str) -> None:
+        self.status_text = "Sending"
+        try:
+            await Runner.run(
+                starting_agent=self.agent,
+                input=message,
+                max_turns=100,
+                hooks=LoggingRunHooks(),
+                session=self.session,
+            )
+            await self.session.refresh_messages()
+            self.status_text = "Idle"
+        except Exception as exc:
+            self.status_text = f"Error: {_shorten(exc)}"
+
+    def start_send(self, message: str) -> None:
+        if self.pending_task is not None and not self.pending_task.done():
+            self.status_text = "Busy"
+            return
+        self.pending_task = asyncio.create_task(self.send_message(message))
 
 
 class LoggingRunHooks(RunHooks):
@@ -134,33 +233,6 @@ class LoggingRunHooks(RunHooks):
         print(f"[hook] agent_end: {agent.name} | output={_shorten(output)}")
 
 
-async def run(task_input: str) -> None:
-    config = load_config()
-    if config is None:
-        print("No config found. Please create a .sopho-harness/config.toml file.")
-        config = SophoHarnessConfig()
-    session_dir = Path(".sopho-harness")
-    session_dir.mkdir(parents=True, exist_ok=True)
-    session = SQLiteSession(
-        session_id="default",
-        db_path=session_dir / "session.db",
-    )
-    agent = Agent(
-        name="Coding agent",
-        instructions=build_instructions(config),
-        model=openai_model,
-        tools=build_tools(config),
-    )
-    result = await Runner.run(
-        starting_agent=agent,
-        input=task_input,
-        max_turns=100,
-        hooks=LoggingRunHooks(),
-        session=session,
-    )
-    print(result.final_output)
-
-
 def gui(state: GuiState) -> None:
     viewport = imgui.get_main_viewport()
     imgui.set_next_window_pos(viewport.work_pos)
@@ -175,17 +247,70 @@ def gui(state: GuiState) -> None:
     )
 
     imgui.begin("RootWindow", None, flags)
-    imgui.text("Hello from async ImGui")
+    imgui.text("sopho-harness")
+    imgui.same_line()
+    imgui.text_disabled(f"Status: {state.status_text}")
     imgui.separator()
-    imgui.text("This window fills the main application window.")
-    imgui.input_text("Input", "Type something here...")
+
+    footer_height = 170
+    messages_height = max(0.0, imgui.get_content_region_avail().y - footer_height)
+    child_flags = imgui.WindowFlags_.horizontal_scrollbar
+    messages = state.session.get_cached_messages()
+
+    imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
+    for role, content in messages:
+        imgui.text_colored(
+            (0.4, 0.7, 1.0, 1.0) if role == "assistant" else (0.7, 1.0, 0.4, 1.0),
+            role,
+        )
+        imgui.same_line()
+        imgui.text_wrapped(content)
+        imgui.spacing()
+    if imgui.get_scroll_y() >= imgui.get_scroll_max_y() - 4:
+        imgui.set_scroll_here_y(1.0)
+    imgui.end_child()
+
+    imgui.separator()
+    _, state.input_text = imgui.input_text_multiline(
+        "##chat_input",
+        state.input_text,
+        imgui.ImVec2(-1, 110),
+    )
+
+    if imgui.button("Send") and state.input_text.strip():
+        message = state.input_text.strip()
+        state.input_text = ""
+        state.start_send(message)
+
+    imgui.same_line()
+    if imgui.button("Clear"):
+        state.status_text = "Cleared"
+        state.input_text = ""
+
     imgui.end()
 
 
 def main() -> None:
+    config = load_config()
+    if config is None:
+        print("No config found. Please create a .sopho-harness/config.toml file.")
+        config = SophoHarnessConfig()
+
     assets_dir = Path(__file__).parent / "assets"
     hello_imgui.set_assets_folder(str(assets_dir))
-    state = GuiState()
+    session_dir = Path(".sopho-harness")
+    session_dir.mkdir(parents=True, exist_ok=True)
+    session = UiSQLiteSession(
+        session_id="default",
+        db_path=session_dir / "session.db",
+    )
+    agent = Agent(
+        name="Coding agent",
+        instructions=build_instructions(config),
+        model=openai_model,
+        tools=build_tools(config),
+    )
+    state = GuiState(session=session, agent=agent)
 
     def load_fonts() -> None:
         try:
@@ -193,6 +318,11 @@ def main() -> None:
             hello_imgui.load_font(font_path, 18.0)
         except Exception as e:
             print(f"Failed to load any CJK font: {e}")
+
+    async def preload_messages() -> None:
+        await session.refresh_messages()
+
+    asyncio.run(preload_messages())
 
     runner_params = hello_imgui.RunnerParams()
     runner_params.app_window_params.window_title = "Sopho Harness"
