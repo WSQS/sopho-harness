@@ -274,6 +274,21 @@ wheels = [
 ]
 
 [[package]]
+name = "imgui-bundle"
+version = "1.92.801"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/b9/4217165c5fa832dbe662c2d96f0810aa7280eb2cc3bcae2b7ac4260e3f08/imgui_bundle-1.92.801.tar.gz", hash = "sha256:7d790708affe7476969d397784b40eb91760a201ce752131e5bedf4d514e3a45", size = 48343289, upload-time = "2026-05-13T13:34:13.972Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/9e/482dcc3df4d8fcb46fbdbed52b055b5de07eab82d9bec0a1b3c5d280f7fd/imgui_bundle-1.92.801-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:1a13952a7420794666abafbbfadf0e755b6b18e0b677b7f3f744469b71066c73", size = 10162464, upload-time = "2026-05-13T13:33:52.194Z" },
+    { url = "https://files.pythonhosted.org/packages/29/93/470e3e9a71aeb1559c84651196e93678ccdf1729d5c6365051346a771356/imgui_bundle-1.92.801-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:57e7e3bc18ac4d93ae796cd6f403b82c0a28be105848376a70b3a7075385d91d", size = 12244332, upload-time = "2026-05-13T13:33:54.821Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/44/b9eb9da81b7dd74eaba8b39af07d8d95717c2b2e251b6c3475d8f95a6195/imgui_bundle-1.92.801-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:74a4ab84bc4336c9025c6c96033f44904a667a285ad188f31ca2c595f4fea1f0", size = 13339617, upload-time = "2026-05-13T13:33:57.848Z" },
+    { url = "https://files.pythonhosted.org/packages/82/55/fe08eec7a64989beb2e970a775e279b4d6ab11d113849a4fc60d56154766/imgui_bundle-1.92.801-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:5f56121d0ea45a92a291722ae235e8d8ad00eecf4afbbe5fa683b20dc4d077ed", size = 13297473, upload-time = "2026-05-13T13:34:00.843Z" },
+    { url = "https://files.pythonhosted.org/packages/70/00/cab90cfb276a7843091a92899f4ec1d8289daf8add6a48322cd7d6b20b2c/imgui_bundle-1.92.801-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:93e07d4623292b4cb8b0d7d62f5bc066d544c3d1f0902213c9713d9739e21ecf", size = 14199832, upload-time = "2026-05-13T13:34:03.852Z" },
+    { url = "https://files.pythonhosted.org/packages/00/b9/5e625a50ff71773752e45145f39452bf2988dc6440089414941341b30bc1/imgui_bundle-1.92.801-cp314-cp314-win_amd64.whl", hash = "sha256:555d37df1fdde62d4d6bfaf985de90cbac6618358d65f1050d0a33269e88e230", size = 11384993, upload-time = "2026-05-13T13:34:06.62Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/4c/dbf7b4141694e4841450db778a8f68e98b2bde48d05e985e372cd3b21b06/imgui_bundle-1.92.801-cp314-cp314-win_arm64.whl", hash = "sha256:d0c73b38860996a7e6608d83e9d8d6a4d40f84968085583de58ecf89de479bd8", size = 10937072, upload-time = "2026-05-13T13:34:09.193Z" },
+]
+
+[[package]]
 name = "jiter"
 version = "0.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -656,6 +671,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "dotenv" },
+    { name = "imgui-bundle" },
     { name = "openai-agents" },
 ]
 
@@ -667,6 +683,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "imgui-bundle", specifier = ">=1.92.801" },
     { name = "openai-agents", specifier = ">=0.14.1" },
 ]
 
