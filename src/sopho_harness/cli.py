@@ -156,10 +156,22 @@ async def run(task_input: str) -> None:
 
 
 def gui() -> None:
-    imgui.begin("Simple Window")
+    viewport = imgui.get_main_viewport()
+    imgui.set_next_window_pos(viewport.work_pos)
+    imgui.set_next_window_size(viewport.work_size)
+
+    flags = (
+        imgui.WindowFlags_.no_decoration
+        | imgui.WindowFlags_.no_move
+        | imgui.WindowFlags_.no_saved_settings
+        | imgui.WindowFlags_.no_scrollbar
+        | imgui.WindowFlags_.no_scroll_with_mouse
+    )
+
+    imgui.begin("RootWindow", None, flags)
     imgui.text("Hello from async ImGui")
     imgui.separator()
-    imgui.text("This window is rendered with hello_imgui.run_async().")
+    imgui.text("This window fills the main application window.")
     imgui.input_text("Input", "Type something here...")
     imgui.end()
 
