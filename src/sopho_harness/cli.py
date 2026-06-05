@@ -24,6 +24,7 @@ from openai import AsyncOpenAI
 from sopho_harness.config import SophoHarnessConfig, load_config
 from sopho_harness.context import build_instructions
 from sopho_harness.tools import build_tools
+from imgui_bundle import hello_imgui, imgui
 
 load_dotenv()
 
@@ -155,16 +156,17 @@ async def run(task_input: str) -> None:
     print(result.final_output)
 
 
+def gui() -> None:
+    imgui.begin("Simple Window")
+    imgui.text("Hello from async ImGui")
+    imgui.separator()
+    imgui.text("This window is rendered with hello_imgui.run_async().")
+    imgui.input_text("Input", "Type something here...")
+    imgui.end()
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "task_input",
-        nargs="*",
-        help="Task input for the coding agent.",
-    )
-    args = parser.parse_args()
-    task_input = " ".join(args.task_input).strip() or "Code review this python project."
-    asyncio.run(run(task_input))
+    asyncio.run(hello_imgui.run_async(gui))
 
 
 if __name__ == "__main__":
