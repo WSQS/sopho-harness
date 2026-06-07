@@ -10,6 +10,7 @@ from agents import (
     RunContextWrapper,
     RunHooks,
     Runner,
+    SessionABC,
     SQLiteSession,
     Tool,
     set_default_openai_api,
@@ -122,20 +123,47 @@ def _item_to_message(item: TResponseInputItem) -> tuple[str, str] | None:
     return role, _shorten(item)
 
 
-class UiSQLiteSession(SQLiteSession):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._messages_cache: list[tuple[str, str]] = []
+class UiSQLiteSession(SessionABC):
+    """Session backed by SQLite with an in-memory message cache for the GUI."""
 
-    async def refresh_messages(self) -> list[tuple[str, str]]:
-        items = await self.get_items()
-        self._messages_cache = [
-            message for item in items if (message := _item_to_message(item)) is not None
+    def __init__(self, session_id: str, db_path: str | Path) -> None:
+        self._backend = SQLiteSession(session_id=session_id, db_path=db_path)
+        self._messages: list[tuple[str, str]] = []
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._load())
+        except RuntimeError:
+            asyncio.run(self._load())
+
+    async def add_items(self, items: list[TResponseInputItem]) -> None:
+        await self._backend.add_items(items)
+        for item in items:
+            msg = _item_to_message(item)
+            if msg is not None:
+                self._messages.append(msg)
+
+    async def clear_session(self) -> None:
+        await self._backend.clear_session()
+        self._messages.clear()
+
+    async def get_items(self, limit: int | None = None) -> list[TResponseInputItem]:
+        return await self._backend.get_items(limit=limit)
+
+    async def pop_item(self) -> TResponseInputItem | None:
+        result = await self._backend.pop_item()
+        if result is not None and _item_to_message(result) is not None:
+            self._messages.pop()
+        return result
+
+    async def _load(self) -> None:
+        items = await self._backend.get_items()
+        self._messages = [
+            msg for item in items if (msg := _item_to_message(item)) is not None
         ]
-        return list(self._messages_cache)
 
-    def get_cached_messages(self) -> list[tuple[str, str]]:
-        return list(self._messages_cache)
+    @property
+    def messages(self) -> Sequence[tuple[str, str]]:
+        return self._messages
 
 
 @dataclass
@@ -156,7 +184,6 @@ class GuiState:
                 hooks=LoggingRunHooks(),
                 session=self.session,
             )
-            await self.session.refresh_messages()
             self.status_text = "Idle"
         except Exception as exc:
             self.status_text = f"Error: {_shorten(exc)}"
@@ -255,7 +282,7 @@ def gui(state: GuiState) -> None:
     footer_height = 170
     messages_height = max(0.0, imgui.get_content_region_avail().y - footer_height)
     child_flags = imgui.WindowFlags_.horizontal_scrollbar
-    messages = state.session.get_cached_messages()
+    messages = state.session.messages
 
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
     for role, content in messages:
@@ -318,11 +345,6 @@ def main() -> None:
             hello_imgui.load_font(font_path, 18.0)
         except Exception as e:
             print(f"Failed to load any CJK font: {e}")
-
-    async def preload_messages() -> None:
-        await session.refresh_messages()
-
-    asyncio.run(preload_messages())
 
     runner_params = hello_imgui.RunnerParams()
     runner_params.app_window_params.window_title = "Sopho Harness"
