@@ -66,69 +66,65 @@ def _shorten(value: Any, limit: int = 200) -> str:
 
 
 def _item_to_message(item: TResponseInputItem) -> tuple[str, str] | None:
-    def extract_text(value: Any) -> str | None:
-        if isinstance(value, str):
-            return value or None
-
-        if isinstance(value, Mapping):
-            values = cast(Mapping[Any, Any], value)
-            for key in ("text", "result", "output"):
-                text_value = values.get(key)
-                if isinstance(text_value, str) and text_value:
-                    return text_value
-
-            if values.get("type") == "output_text":
-                text_value = values.get("text")
-                if isinstance(text_value, str) and text_value:
-                    return text_value
-
-            nested_content = values.get("content")
-            if isinstance(nested_content, str) and nested_content:
-                return nested_content
-
-            if isinstance(nested_content, Sequence) and not isinstance(
-                nested_content, str | bytes | bytearray
-            ):
-                text_parts: list[str] = []
-                for part in cast(Sequence[Any], nested_content):
-                    text = extract_text(part)
-                    if isinstance(text, str) and text:
-                        text_parts.append(text)
-                if text_parts:
-                    return "\n".join(text_parts)
-
-            return None
-
-        if isinstance(value, Sequence) and not isinstance(
-            value, str | bytes | bytearray
-        ):
-            text_parts: list[str] = []
-            for part in cast(Sequence[Any], value):
-                text = extract_text(part)
-                if isinstance(text, str) and text:
-                    text_parts.append(text)
-            if text_parts:
-                return "\n".join(text_parts)
-
-        return None
-
     role = item.get("role")
-    if not isinstance(role, str):
-        return None
+    v_type = item.get("type")
+    content = item.get("content")
 
-    text = extract_text(item.get("content"))
-    if isinstance(text, str):
-        return role, text
+    def handle_data(data: Any) -> str:
+        if data is None:
+            return ""
 
-    return role, _shorten(item)
+        if isinstance(data, str):
+            return data
+
+        if isinstance(data, Mapping):
+            mapping = cast(Mapping[str, Any], data)
+            item_type = mapping.get("type")
+            if item_type == "output_text":
+                text = mapping.get("text")
+                if isinstance(text, str):
+                    return text
+            if item_type == "function_call":
+                return (
+                    f"function name: {mapping.get('name')}, "
+                    f"arguments: {mapping.get('arguments')}"
+                )
+            if item_type == "function_call_output":
+                output = mapping.get("output")
+                return f"output length: {len(str(output))}"
+
+            nested_content = mapping.get("content")
+            if nested_content is not None:
+                nested_text = handle_data(nested_content)
+                if nested_text:
+                    return nested_text
+
+            return _shorten(mapping)
+
+        if isinstance(data, Sequence) and not isinstance(data, str | bytes | bytearray):
+            sequence = cast(Sequence[Any], data)
+            if len(sequence) == 1:
+                return handle_data(sequence[0])
+
+            parts = [text for part in sequence if (text := handle_data(part))]
+            if parts:
+                return "\n".join(parts)
+
+        return _shorten(data)
+
+    if isinstance(role, str):
+        return (role, handle_data(content))
+    if isinstance(v_type, str):
+        return (v_type, handle_data(item))
+    return None
 
 
 class UiSQLiteSession(SessionABC):
-    """Session backed by SQLite with an in-memory message cache for the GUI."""
+    """Session backed by SQLite with an in-memory item cache for the GUI."""
 
     def __init__(self, session_id: str, db_path: str | Path) -> None:
         self._backend = SQLiteSession(session_id=session_id, db_path=db_path)
-        self._messages: list[tuple[str, str]] = []
+        self._items: list[TResponseInputItem] = []
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self._load())
@@ -137,33 +133,27 @@ class UiSQLiteSession(SessionABC):
 
     async def add_items(self, items: list[TResponseInputItem]) -> None:
         await self._backend.add_items(items)
-        for item in items:
-            msg = _item_to_message(item)
-            if msg is not None:
-                self._messages.append(msg)
+        self._items.extend(items)
 
     async def clear_session(self) -> None:
         await self._backend.clear_session()
-        self._messages.clear()
+        self._items.clear()
 
     async def get_items(self, limit: int | None = None) -> list[TResponseInputItem]:
         return await self._backend.get_items(limit=limit)
 
     async def pop_item(self) -> TResponseInputItem | None:
         result = await self._backend.pop_item()
-        if result is not None and _item_to_message(result) is not None:
-            self._messages.pop()
+        if result is not None and self._items:
+            self._items.pop()
         return result
 
     async def _load(self) -> None:
-        items = await self._backend.get_items()
-        self._messages = [
-            msg for item in items if (msg := _item_to_message(item)) is not None
-        ]
+        self._items = await self._backend.get_items()
 
     @property
-    def messages(self) -> Sequence[tuple[str, str]]:
-        return self._messages
+    def items(self) -> list[TResponseInputItem]:
+        return list(self._items)
 
 
 @dataclass
@@ -282,7 +272,11 @@ def gui(state: GuiState) -> None:
     footer_height = 170
     messages_height = max(0.0, imgui.get_content_region_avail().y - footer_height)
     child_flags = imgui.WindowFlags_.horizontal_scrollbar
-    messages = state.session.messages
+    messages = [
+        message
+        for item in state.session.items
+        if (message := _item_to_message(item)) is not None
+    ]
 
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
     for role, content in messages:
