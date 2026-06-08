@@ -276,16 +276,27 @@ def gui(state: GuiState) -> None:
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
     items = state.session.items
     for item in items:
-        r = _item_to_message(item)
-        if r is None:
-            continue
-        role, content = r
-        imgui.text_colored(
-            (0.4, 0.7, 1.0, 1.0) if role == "assistant" else (0.7, 1.0, 0.4, 1.0),
-            role,
-        )
-        imgui.same_line()
-        imgui.text_wrapped(content)
+        match item:
+            case {"content": content, "role": role} if (
+                isinstance(content, str) and len(item) == 2
+            ):
+                imgui.text_colored((0.4, 0.7, 1.0, 1.0), role)
+                imgui.same_line()
+                imgui.text_wrapped(content)
+            case {
+                "type": "message",
+                "role": role,
+                "content": [{"type": "output_text", "text": text}],
+            }:
+                imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
+                imgui.same_line()
+                imgui.text_wrapped(text)
+            case {"type": "function_call", "name": name, "arguments": arguments}:
+                imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
+                imgui.same_line()
+                imgui.text_wrapped(f"{name}({arguments})")
+            case _:
+                imgui.text_wrapped(str(item))
         imgui.spacing()
     if imgui.get_scroll_y() >= imgui.get_scroll_max_y() - 4:
         imgui.set_scroll_here_y(1.0)
