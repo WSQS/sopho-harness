@@ -272,14 +272,13 @@ def gui(state: GuiState) -> None:
     footer_height = 170
     messages_height = max(0.0, imgui.get_content_region_avail().y - footer_height)
     child_flags = imgui.WindowFlags_.horizontal_scrollbar
-    messages = [
-        message
-        for item in state.session.items
-        if (message := _item_to_message(item)) is not None
-    ]
 
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
-    for role, content in messages:
+    for item in state.session.items:
+        r = _item_to_message(item)
+        if r is None:
+            continue
+        role, content = r
         imgui.text_colored(
             (0.4, 0.7, 1.0, 1.0) if role == "assistant" else (0.7, 1.0, 0.4, 1.0),
             role,
