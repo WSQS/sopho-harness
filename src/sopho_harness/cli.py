@@ -291,6 +291,13 @@ def gui(state: GuiState) -> None:
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
                 imgui.same_line()
                 imgui.text_wrapped(text)
+            case {
+                "type": "reasoning",
+                "summary": [{"type": "summary_text", "text": text}],
+            }:
+                imgui.text_colored((0.7, 1.0, 0.4, 1.0), "reasoning")
+                imgui.same_line()
+                imgui.text_wrapped(text)
             case {"type": "function_call", "name": name, "arguments": arguments}:
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
                 imgui.same_line()
