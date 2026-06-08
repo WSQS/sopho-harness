@@ -274,7 +274,8 @@ def gui(state: GuiState) -> None:
     child_flags = imgui.WindowFlags_.horizontal_scrollbar
 
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
-    for item in state.session.items:
+    items = state.session.items
+    for item in items:
         r = _item_to_message(item)
         if r is None:
             continue
