@@ -295,6 +295,10 @@ def gui(state: GuiState) -> None:
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
                 imgui.same_line()
                 imgui.text_wrapped(f"{name}({arguments})")
+            case {"type": "function_call_output", "output": output}:
+                imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call_output")
+                imgui.same_line()
+                imgui.text_wrapped(f"output: {output}")
             case _:
                 imgui.text_wrapped(str(item))
         imgui.spacing()
