@@ -152,8 +152,8 @@ class UiSQLiteSession(SessionABC):
         self._items = await self._backend.get_items()
 
     @property
-    def items(self) -> list[TResponseInputItem]:
-        return list(self._items)
+    def items(self) -> Sequence[TResponseInputItem]:
+        return self._items
 
 
 @dataclass
