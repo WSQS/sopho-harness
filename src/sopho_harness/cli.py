@@ -256,12 +256,28 @@ def gui(state: GuiState) -> None:
                         imgui.same_line()
                         imgui.text(text.split("\n")[0] + "...")
                     else:
-                        if imgui.button(f"collapse##{index}"):
-                            state.collapse[index] = not collapse
-                        imgui.same_line()
                         imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
                         imgui.same_line()
                         imgui.text_wrapped(text)
+                        item_rect_min = imgui.get_item_rect_min()
+                        item_rect_max = imgui.get_item_rect_max()
+                        window_min = imgui.get_window_pos()
+                        window_max = imgui.get_window_size() + imgui.get_window_pos()
+                        if (
+                            item_rect_min.y < window_max.y
+                            and item_rect_max.y > window_min.y
+                        ):
+                            cur_pos = imgui.get_cursor_screen_pos()
+                            window_max_y = window_max.y
+                            if imgui.get_scroll_max_x() > 0:
+                                window_max_y -= imgui.get_style().scrollbar_size
+                            y_pos = min(item_rect_max.y, window_max_y)
+                            y_pos -= imgui.get_frame_height()
+                            y_pos -= imgui.get_style().item_spacing.y
+                            imgui.set_cursor_screen_pos((cur_pos.x, y_pos))
+                            if imgui.button(f"collapse##{index}"):
+                                state.collapse[index] = not collapse
+                            imgui.set_cursor_screen_pos(cur_pos)
                 else:
                     imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
                     imgui.same_line()
