@@ -273,6 +273,13 @@ def gui(state: GuiState) -> None:
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), "reasoning")
                 imgui.same_line()
                 imgui.text_wrapped(text)
+            case {
+                "type": "reasoning",
+                "content": [],
+                "encrypted_content": encrypted_content,
+            } if isinstance(encrypted_content, str):
+                # we should not display encrypted content reasoning
+                continue
             case {"type": "function_call", "name": name, "arguments": arguments}:
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
                 imgui.same_line()
