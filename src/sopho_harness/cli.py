@@ -277,10 +277,29 @@ def gui(state: GuiState) -> None:
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
                 imgui.same_line()
                 imgui.text_wrapped(f"{name}({arguments})")
-            case {"type": "function_call_output", "output": output}:
-                imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call_output")
-                imgui.same_line()
-                imgui.text_wrapped(f"output: {output}")
+            case {"type": "function_call_output", "output": output} if isinstance(
+                output, str
+            ):
+                if is_multiline(output):
+                    collapse = state.collapse.get(index, True)
+                    if collapse:
+                        if imgui.button(f"expand##{index}"):
+                            state.collapse[index] = not collapse
+                        imgui.same_line()
+                        imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call_output")
+                        imgui.same_line()
+                        imgui.text(output.split("\n")[0] + "...")
+                    else:
+                        if imgui.button(f"collapse##{index}"):
+                            state.collapse[index] = not collapse
+                        imgui.same_line()
+                        imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call_output")
+                        imgui.same_line()
+                        imgui.text_wrapped(output)
+                else:
+                    imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call_output")
+                    imgui.same_line()
+                    imgui.text_wrapped(f"output: {output}")
             case _:
                 imgui.text_wrapped(str(item))
         imgui.spacing()
