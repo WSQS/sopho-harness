@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+import json
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -299,6 +300,14 @@ def gui(state: GuiState) -> None:
                 # we should not display encrypted content reasoning
                 continue
             case {"type": "function_call", "name": name, "arguments": arguments}:
+                try:
+                    parsed_arguments: dict[str, Any] = json.loads(arguments)
+                    str_arguments = [
+                        f"{k}={str(v)}" for k, v in parsed_arguments.items()
+                    ]
+                    arguments = ",".join(str_arguments)
+                except json.JSONDecodeError:
+                    pass
                 imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
                 imgui.same_line()
                 imgui.text_wrapped(f"{name}({arguments})")
