@@ -70,10 +70,14 @@ class UiSQLiteSession(SessionABC):
 
     def __init__(self, session_id: str, db_path: str | Path) -> None:
         self._backend = SQLiteSession(session_id=session_id, db_path=db_path)
-        self._items: list[TResponseInputItem] = []
+        self._items: list[tuple[int, TResponseInputItem]] = []
+        self._index = 0
 
         async def load() -> None:
-            self._items = await self._backend.get_items()
+            items = await self._backend.get_items()
+            self._items = list(enumerate(items, start=self._index))
+            if self._items:
+                self._index = self._items[-1][0] + 1
 
         try:
             loop = asyncio.get_running_loop()
@@ -83,7 +87,9 @@ class UiSQLiteSession(SessionABC):
 
     async def add_items(self, items: list[TResponseInputItem]) -> None:
         await self._backend.add_items(items)
-        self._items.extend(items)
+        self._items.extend(list(enumerate(items, start=self._index)))
+        if self._items:
+            self._index = self._items[-1][0] + 1
 
     async def clear_session(self) -> None:
         await self._backend.clear_session()
@@ -99,7 +105,7 @@ class UiSQLiteSession(SessionABC):
         return result
 
     @property
-    def items(self) -> Sequence[TResponseInputItem]:
+    def items(self) -> Sequence[tuple[int, TResponseInputItem]]:
         return self._items
 
 
@@ -222,7 +228,7 @@ def gui(state: GuiState) -> None:
 
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
     items = state.session.items
-    for item in items:
+    for _, item in items:
         match item:
             case {"content": content, "role": role} if (
                 isinstance(content, str) and len(item) == 2
