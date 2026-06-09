@@ -1,9 +1,9 @@
 import asyncio
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 import os
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 from agents import (
     Agent,
     ModelResponse,
@@ -63,60 +63,6 @@ def _shorten(value: Any, limit: int = 200) -> str:
     if len(text) <= limit:
         return text
     return f"{text[:limit]}..."
-
-
-def _item_to_message(item: TResponseInputItem) -> tuple[str, str] | None:
-    role = item.get("role")
-    v_type = item.get("type")
-    content = item.get("content")
-
-    def handle_data(data: Any) -> str:
-        if data is None:
-            return ""
-
-        if isinstance(data, str):
-            return data
-
-        if isinstance(data, Mapping):
-            mapping = cast(Mapping[str, Any], data)
-            item_type = mapping.get("type")
-            if item_type == "output_text":
-                text = mapping.get("text")
-                if isinstance(text, str):
-                    return text
-            if item_type == "function_call":
-                return (
-                    f"function name: {mapping.get('name')}, "
-                    f"arguments: {mapping.get('arguments')}"
-                )
-            if item_type == "function_call_output":
-                output = mapping.get("output")
-                return f"output length: {len(str(output))}"
-
-            nested_content = mapping.get("content")
-            if nested_content is not None:
-                nested_text = handle_data(nested_content)
-                if nested_text:
-                    return nested_text
-
-            return _shorten(mapping)
-
-        if isinstance(data, Sequence) and not isinstance(data, str | bytes | bytearray):
-            sequence = cast(Sequence[Any], data)
-            if len(sequence) == 1:
-                return handle_data(sequence[0])
-
-            parts = [text for part in sequence if (text := handle_data(part))]
-            if parts:
-                return "\n".join(parts)
-
-        return _shorten(data)
-
-    if isinstance(role, str):
-        return (role, handle_data(content))
-    if isinstance(v_type, str):
-        return (v_type, handle_data(item))
-    return None
 
 
 class UiSQLiteSession(SessionABC):
