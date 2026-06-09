@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -65,6 +65,10 @@ def _shorten(value: Any, limit: int = 200) -> str:
     return f"{text[:limit]}..."
 
 
+def is_multiline(text: str) -> bool:
+    return "\n" in text
+
+
 class UiSQLiteSession(SessionABC):
     """Session backed by SQLite with an in-memory item cache for the GUI."""
 
@@ -116,6 +120,7 @@ class GuiState:
     input_text: str = ""
     status_text: str = "Idle"
     pending_task: asyncio.Task[None] | None = None
+    collapse: dict[int, bool] = field(default_factory=dict[int, bool])
 
     async def send_message(self, message: str) -> None:
         self.status_text = "Sending"
@@ -228,7 +233,7 @@ def gui(state: GuiState) -> None:
 
     imgui.begin_child("Messages", imgui.ImVec2(0, messages_height), True, child_flags)
     items = state.session.items
-    for _, item in items:
+    for index, item in items:
         match item:
             case {"content": content, "role": role} if (
                 isinstance(content, str) and len(item) == 2
@@ -241,9 +246,26 @@ def gui(state: GuiState) -> None:
                 "role": role,
                 "content": [{"type": "output_text", "text": text}],
             }:
-                imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
-                imgui.same_line()
-                imgui.text_wrapped(text)
+                if is_multiline(text):
+                    collapse = state.collapse.get(index, True)
+                    if collapse:
+                        if imgui.button(f"expand##{index}"):
+                            state.collapse[index] = not collapse
+                        imgui.same_line()
+                        imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
+                        imgui.same_line()
+                        imgui.text(text.split("\n")[0] + "...")
+                    else:
+                        if imgui.button(f"collapse##{index}"):
+                            state.collapse[index] = not collapse
+                        imgui.same_line()
+                        imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
+                        imgui.same_line()
+                        imgui.text_wrapped(text)
+                else:
+                    imgui.text_colored((0.7, 1.0, 0.4, 1.0), role)
+                    imgui.same_line()
+                    imgui.text(text)
             case {
                 "type": "reasoning",
                 "summary": [{"type": "summary_text", "text": text}],
