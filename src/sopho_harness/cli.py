@@ -71,11 +71,15 @@ class UiSQLiteSession(SessionABC):
     def __init__(self, session_id: str, db_path: str | Path) -> None:
         self._backend = SQLiteSession(session_id=session_id, db_path=db_path)
         self._items: list[TResponseInputItem] = []
+
+        async def load() -> None:
+            self._items = await self._backend.get_items()
+
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self._load())
+            loop.create_task(load())
         except RuntimeError:
-            asyncio.run(self._load())
+            asyncio.run(load())
 
     async def add_items(self, items: list[TResponseInputItem]) -> None:
         await self._backend.add_items(items)
@@ -93,9 +97,6 @@ class UiSQLiteSession(SessionABC):
         if result is not None and self._items:
             self._items.pop()
         return result
-
-    async def _load(self) -> None:
-        self._items = await self._backend.get_items()
 
     @property
     def items(self) -> Sequence[TResponseInputItem]:
