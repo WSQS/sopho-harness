@@ -113,6 +113,18 @@ class UiSQLiteSession(SessionABC):
     def items(self) -> Sequence[tuple[int, TResponseInputItem]]:
         return self._items
 
+    def query(self, index: int) -> TResponseInputItem | None:
+        for i_index, item in self._items:
+            if i_index == index:
+                return item
+        return None
+
+
+@dataclass
+class ToolCallId:
+    caller: int
+    callee: int
+
 
 @dataclass
 class GuiState:
@@ -122,6 +134,7 @@ class GuiState:
     status_text: str = "Idle"
     pending_task: asyncio.Task[None] | None = None
     collapse: dict[int, bool] = field(default_factory=dict[int, bool])
+    tool_call_map: dict[str, ToolCallId] = field(default_factory=dict[str, ToolCallId])
 
     async def send_message(self, message: str) -> None:
         self.status_text = "Sending"
@@ -299,7 +312,15 @@ def gui(state: GuiState) -> None:
             } if isinstance(encrypted_content, str):
                 # we should not display encrypted content reasoning
                 continue
-            case {"type": "function_call", "name": name, "arguments": arguments}:
+            case {
+                "type": "function_call",
+                "name": name,
+                "arguments": arguments,
+                "call_id": call_id,
+            }:
+                tool_call_id = state.tool_call_map.get(call_id, ToolCallId(0, 0))
+                tool_call_id.caller = index
+                state.tool_call_map[call_id] = tool_call_id
                 try:
                     parsed_arguments: dict[str, Any] = json.loads(arguments)
                     str_arguments = [
@@ -308,12 +329,70 @@ def gui(state: GuiState) -> None:
                     arguments = ",".join(str_arguments)
                 except json.JSONDecodeError:
                     pass
-                imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
-                imgui.same_line()
-                imgui.text_wrapped(f"{name}({arguments})")
-            case {"type": "function_call_output", "output": output} if isinstance(
-                output, str
-            ):
+                if (
+                    state.tool_call_map[call_id].callee != 0
+                    and state.session.query(state.tool_call_map[call_id].callee)
+                    is not None
+                ):
+                    tool_call_output = state.session.query(
+                        state.tool_call_map[call_id].callee
+                    )
+                    match tool_call_output:
+                        case {
+                            "type": "function_call_output",
+                            "output": output,
+                            "call_id": call_id,
+                        } if isinstance(output, str):
+                            if is_multiline(output):
+                                collapse = state.collapse.get(index, True)
+                                if collapse:
+                                    if imgui.button(f"expand##{index}"):
+                                        state.collapse[index] = not collapse
+                                    imgui.same_line()
+                                    imgui.text_colored(
+                                        (0.7, 1.0, 0.4, 1.0), "function_call_output"
+                                    )
+                                    imgui.same_line()
+                                    imgui.text(
+                                        f"{name}({arguments})\n"
+                                        + output.split("\n")[0]
+                                        + "..."
+                                    )
+                                else:
+                                    imgui.text_colored(
+                                        (0.7, 1.0, 0.4, 1.0), "function_call_output"
+                                    )
+                                    imgui.same_line()
+                                    imgui.text_wrapped(
+                                        f"{name}({arguments})\n" + output
+                                    )
+                                    draw_collapse_gui(state, index)
+                            else:
+                                imgui.text_colored(
+                                    (0.7, 1.0, 0.4, 1.0), "function_call_output"
+                                )
+                                imgui.same_line()
+                                imgui.text_wrapped(
+                                    f"{name}({arguments})\n" + f"output: {output}"
+                                )
+                        case t:
+                            imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
+                            imgui.same_line()
+                            imgui.text_wrapped(f"{name}({arguments}):{t}")
+                else:
+                    imgui.text_colored((0.7, 1.0, 0.4, 1.0), "function_call")
+                    imgui.same_line()
+                    imgui.text_wrapped(f"{name}({arguments})")
+            case {
+                "type": "function_call_output",
+                "output": output,
+                "call_id": call_id,
+            } if isinstance(output, str):
+                tool_call_id = state.tool_call_map.get(call_id, ToolCallId(0, 0))
+                tool_call_id.callee = index
+                state.tool_call_map[call_id] = tool_call_id
+                if state.tool_call_map[call_id].caller != 0:
+                    continue
                 if is_multiline(output):
                     collapse = state.collapse.get(index, True)
                     if collapse:
